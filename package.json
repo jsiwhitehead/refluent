@@ -1,0 +1,21 @@
+{
+  "name": "refluent",
+  "version": "0.0.1",
+  "description": "A React toolkit for enhanced component building",
+  "author": "Jon Whitehead",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "prettier":
+      "prettier --single-quote --trailing-comma all --write \"src/**/*.ts\"",
+    "clean": "rimraf lib/*",
+    "build": "yarn run clean && tsc",
+    "prepare": "yarn run build"
+  },
+  "devDependencies": {
+    "prettier": "^1.11.1",
+    "rimraf": "^2.6.2",
+    "typescript": "^2.7.2"
+  }
+}
