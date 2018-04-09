@@ -1,6 +1,6 @@
 {
   "name": "refluent",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "A React toolkit for enhanced component building",
   "author": "Jon Whitehead",
   "license": "MIT",
@@ -14,8 +14,14 @@
     "prepare": "yarn run build"
   },
   "devDependencies": {
+    "@types/react": "^16.3.5",
     "prettier": "^1.11.1",
+    "react": "^16.3.1",
     "rimraf": "^2.6.2",
-    "typescript": "^2.7.2"
+    "typescript": "^2.8.1"
+  },
+  "dependencies": {
+    "keys-to-object": "^0.2.0",
+    "memize": "^1.0.5"
   }
 }
