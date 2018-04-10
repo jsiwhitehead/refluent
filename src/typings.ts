@@ -31,7 +31,15 @@ export interface Comp<TOuter = Obj, TInner = TOuter>
         ) => React.StatelessComponent<T> | React.ComponentClass<T>)
       | Falsy,
   ): Comp<T, TInner>;
-  context(name: string, getContext?: (props: any) => any): Comp<TOuter, TInner>;
+  branch<T extends Obj = {}, N extends Obj | undefined = any>(
+    test: (props: TInner) => any,
+    pass:
+      | React.StatelessComponent<TInner & T & { next: Next<N> }>
+      | React.ComponentClass<TInner & T & { next: Next<N> }>,
+    fail?:
+      | React.StatelessComponent<TInner & T & { next: Next<N> }>
+      | React.ComponentClass<TInner & T & { next: Next<N> }>,
+  ): Comp<TOuter & T, TInner & T & N>;
   do<T extends Obj = any>(
     map: ((
       props$: (() => TInner) &
@@ -260,6 +268,7 @@ export interface Comp<TOuter = Obj, TInner = TOuter>
           ) => Partial<T> | (() => void) | Falsy,
         ) => () => void),
       push: (update: Partial<T> | Falsy, callback?: () => void) => void,
+      commit?: true,
     ) => T | (() => void) | Falsy),
   ): Comp<TOuter, TInner & T>;
   do<T extends Obj = {}>(obj: T): Comp<TOuter, TInner & T>;
@@ -725,23 +734,23 @@ export interface Comp<TOuter = Obj, TInner = TOuter>
       commit?: true,
     ) => Partial<T> | (() => void) | Falsy,
   ): Comp<TOuter, TInner & T>;
-  pure(cache?: boolean): Comp<TOuter, TInner>;
-  pure(key: string, cache?: boolean): Comp<TOuter, TInner>;
-  pure(key1: string, key2: string, cache?: boolean): Comp<TOuter, TInner>;
-  pure(
+  pick(cache?: boolean): Comp<TOuter, TInner>;
+  pick(key: string, cache?: boolean): Comp<TOuter, TInner>;
+  pick(key1: string, key2: string, cache?: boolean): Comp<TOuter, TInner>;
+  pick(
     key1: string,
     key2: string,
     key3: string,
     cache?: boolean,
   ): Comp<TOuter, TInner>;
-  pure(
+  pick(
     key1: string,
     key2: string,
     key3: string,
     key4: string,
     cache?: boolean,
   ): Comp<TOuter, TInner>;
-  pure(
+  pick(
     key1: string,
     key2: string,
     key3: string,
@@ -749,7 +758,7 @@ export interface Comp<TOuter = Obj, TInner = TOuter>
     key5: string,
     cache?: boolean,
   ): Comp<TOuter, TInner>;
-  pure(
+  pick(
     key1: string,
     key2: string,
     key3: string,
@@ -758,7 +767,7 @@ export interface Comp<TOuter = Obj, TInner = TOuter>
     key6: string,
     cache?: boolean,
   ): Comp<TOuter, TInner>;
-  pure(
+  pick(
     key1: string,
     key2: string,
     key3: string,
@@ -768,7 +777,7 @@ export interface Comp<TOuter = Obj, TInner = TOuter>
     key7: string,
     cache?: boolean,
   ): Comp<TOuter, TInner>;
-  pure(
+  pick(
     key1: string,
     key2: string,
     key3: string,
@@ -779,7 +788,7 @@ export interface Comp<TOuter = Obj, TInner = TOuter>
     key8: string,
     cache?: boolean,
   ): Comp<TOuter, TInner>;
-  pure(
+  pick(
     key1: string,
     key2: string,
     key3: string,
@@ -791,7 +800,7 @@ export interface Comp<TOuter = Obj, TInner = TOuter>
     key9: string,
     cache?: boolean,
   ): Comp<TOuter, TInner>;
-  pure(
+  pick(
     key1: string,
     key2: string,
     key3: string,

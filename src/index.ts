@@ -2,9 +2,9 @@ export { Comp } from './typings';
 
 import * as React from 'react';
 
-import contextMap from './context';
+import branchMap from './branch';
 import doMap from './do';
-import pureMap from './pure';
+import pickMap from './pick';
 import yieldMap from './yield';
 
 import { Comp } from './typings';
@@ -17,9 +17,9 @@ const wrap = base => {
     props => React.createElement(comp || (comp = base()()), props),
     {
       apply: hoc => chain(getComp => () => (hoc ? hoc(getComp()) : getComp())),
-      context: (name, getContext) => chain(contextMap(name, getContext)),
+      branch: (test, pass, fail?) => chain(branchMap(test, pass, fail)),
       do: (...selectors) => chain(doMap(...selectors)),
-      pure: (...args) => chain(pureMap(...args)),
+      pick: (...args) => chain(pickMap(...args)),
       yield: (...selectors) => chain(yieldMap(...selectors)),
     },
   );

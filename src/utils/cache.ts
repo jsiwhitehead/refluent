@@ -23,14 +23,17 @@ const objCache = new WeakMap();
 const strCache = new Map();
 
 export default (full?: boolean) => {
+  const baseMethods = {};
   const methods = {};
   return obj =>
     keysToObject(Object.keys(obj), k => {
       const value = obj[k];
       const type = Object.prototype.toString.call(value);
       if (type === '[object Function]') {
-        methods[k] = value;
-        return obj[k] || ((...args) => methods[k](...args));
+        baseMethods[k] = value;
+        return (
+          methods[k] || (methods[k] = (...args) => baseMethods[k](...args))
+        );
       }
       if (full) {
         if (type === '[object Array]' || type === '[object Object]') {
