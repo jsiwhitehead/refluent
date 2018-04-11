@@ -3,11 +3,6 @@ import * as memize from 'memize';
 
 import { clearUndef, createCache, shallowEqual, select } from './utils';
 
-const replaceIfEqual = (obj1, obj2, ...keys) =>
-  keys.forEach(k => {
-    if (shallowEqual(obj1[k], obj2[k])) obj1[k] = obj2[k];
-  });
-
 const newUpdate = () => ({
   watchers: [] as any[],
   pushed: {},
@@ -26,7 +21,7 @@ const capture = (func, init) => {
         throw new Error("Prop getter shouldn't be called during capture");
       }
       if (!init) {
-        throw new Error("Watch shouldn't be called outside init");
+        throw new Error("Watch shouldn't be called after mount");
       }
       const memoizedMap = memize(
         args => capture(() => map.apply(null, args), false),
@@ -53,47 +48,45 @@ const capture = (func, init) => {
   return result;
 };
 
-const runWatcher = (watcher, update, props, pushed, commit) => {
-  const lastArgs = watcher[commit ? 'commitArgs' : 'renderArgs'];
-  const args = (commit && watcher.renderArgs) || watcher.getArgs(props, pushed);
-  if (!lastArgs || args.some((a, i) => a !== lastArgs[i])) {
-    if (commit && watcher.stop) watcher.stop();
-    const res = watcher.run(args, commit);
-    Object.assign(update.pushed, res.pushed);
-    update.callbacks.push(...res.callbacks);
-    if (commit) {
-      return { ...watcher, commitArgs: args, renderArgs: args, stop: res.stop };
-    }
-    if (res.stop) res.stop();
-    return { ...watcher, renderArgs: args };
-  }
-  return watcher;
-};
-
-const runLayer = (props, cache, prev, commit) => {
+const runWatchers = (props, cache, prev, commit) => {
+  if (commit) commitGetter = (p?) => (p ? prev.pushed : props);
   const update = newUpdate();
-  update.watchers = prev.watchers.map(w =>
-    runWatcher(w, update, props, prev.pushed, commit),
-  );
+  update.watchers = prev.watchers.map(w => {
+    const lastArgs = w[commit ? 'commitArgs' : 'renderArgs'];
+    const args = (commit && w.renderArgs) || w.getArgs(props, prev.pushed);
+    if (!lastArgs || args.some((a, i) => a !== lastArgs[i])) {
+      if (commit && w.stop) w.stop();
+      const res = w.run(args, commit);
+      Object.assign(update.pushed, res.pushed);
+      update.callbacks.push(...res.callbacks);
+      if (!commit) {
+        if (res.stop) res.stop();
+        return { ...w, renderArgs: args };
+      }
+      return { ...w, commitArgs: args, renderArgs: args, stop: res.stop };
+    }
+    return w;
+  });
   update.pushed = { ...prev.pushed, ...cache(update.pushed) };
-  replaceIfEqual(update, prev, 'pushed');
-  return update.pushed !== prev.pushed
-    ? runLayer(props, cache, update, commit)
+  update.callbacks = [...prev.callbacks, ...update.callbacks];
+  return !shallowEqual(update.pushed, prev.pushed)
+    ? runWatchers(props, cache, update, commit)
     : update;
 };
 
 const run = (props, state, commit) => {
   const { cache, ...prev } = state;
-  prev.callbacks = prev.callbacks.filter(c => !c.done);
-  const update = runLayer(props, cache, prev, commit);
-  replaceIfEqual(update, prev, 'watchers', 'callbacks');
-  return update;
+  const update = runWatchers(props, cache, prev, commit);
+  commitGetter = null;
+  ['watchers', 'pushed', 'callbacks'].forEach(k => {
+    if (shallowEqual(update[k], prev[k])) update[k] = prev[k];
+  });
+  return { cache, ...update };
 };
 
 export default function(C, selectors, map) {
   return class Do extends React.Component<any, any> {
     mounted = false;
-    state = { cache: createCache(true), ...newUpdate() };
     init;
     unmount;
     constructor(props) {
@@ -104,15 +97,18 @@ export default function(C, selectors, map) {
         } else if (temp) {
           temp.push(p, cb);
         } else if (this.mounted) {
-          const pushed = { ...this.state.pushed, ...this.state.cache(p) };
-          const next = !shallowEqual(this.state.pushed, pushed)
-            ? run(this.props, { ...this.state, pushed }, false)
-            : null;
-          if (next || cb) this.setState(next || {}, cb);
+          this.setState(prev => {
+            const pushed = { ...prev.pushed, ...prev.cache(p) };
+            const next = !shallowEqual(prev.pushed, pushed)
+              ? run(this.props, { ...prev, pushed }, false)
+              : prev;
+            if (cb) next.callbacks = [...next.callbacks, cb];
+            if (!shallowEqual(next, prev)) return next;
+          });
         }
       };
-      this.init = (commit?) =>
-        capture(
+      this.init = (prev?) => {
+        const { stop, pushed: p, ...update } = capture(
           () =>
             selectors.length
               ? temp.watch(selectors, map, push)
@@ -126,50 +122,45 @@ export default function(C, selectors, map) {
                     );
                   },
                   push,
-                  commit,
+                  !!prev,
                 ),
           true,
         );
-      const { stop, pushed, ...update } = this.init(false);
-      if (stop) stop();
-      this.state = {
-        ...this.state,
-        ...update,
-        pushed: this.state.cache(pushed),
+        if (stop) {
+          if (prev) this.unmount = stop;
+          else stop();
+        }
+        const cache = createCache(true);
+        const pushed = cache({ ...(prev || {}), ...p });
+        return run(this.props, { cache, ...update, pushed }, !!prev);
       };
-      this.state = { ...this.state, ...run(this.props, this.state, false) };
+      this.state = this.init();
     }
     static getDerivedStateFromProps(props, state) {
-      return run(props, state, false);
+      const next = run(props, state, false);
+      next.callbacks = next.callbacks.filter(c => !c.done);
+      return next;
     }
     componentDidMount() {
       this.mounted = true;
-      this.state.callbacks.forEach(c => {
-        c.call();
-        c.done = true;
-      });
-      const { stop, pushed, ...update } = this.init(true);
-      this.unmount = stop;
-      const cache = createCache(true);
-      const newState = { cache, ...update, pushed: cache(pushed) };
-      commitGetter = (p?) => (p ? newState.pushed : this.props);
-      this.setState(run(this.props, newState, true));
-      commitGetter = null;
+      this.setState(this.init(this.state.pushed));
     }
     componentDidUpdate() {
-      this.state.callbacks.forEach(c => {
-        c.call();
-        c.done = true;
-      });
-      commitGetter = (p?) => (p ? this.state.pushed : this.props);
-      const update = run(this.props, this.state, true);
-      commitGetter = null;
-      replaceIfEqual(update, this.state, 'watchers', 'pushed');
-      if (
-        update.watchers !== this.state.watchers ||
-        update.pushed !== this.state.pushed
-      ) {
-        this.setState(update);
+      const { pushed: p, callbacks } = capture(() => {
+        this.state.callbacks.forEach(c => {
+          c.call();
+          c.done = true;
+        });
+      }, false);
+      const pushed = { ...this.state.pushed, ...this.state.cache(p) };
+      const next = run(this.props, { ...this.state, pushed }, true);
+      if (shallowEqual(next.pushed, this.state.pushed)) {
+        next.pushed = this.state.pushed;
+      }
+      if (callbacks.length) next.callbacks = [...next.callbacks, ...callbacks];
+      if (!shallowEqual(next, this.state)) {
+        next.callbacks = next.callbacks.filter(c => !c.done);
+        this.setState(next);
       }
     }
     componentWillUnmount() {
