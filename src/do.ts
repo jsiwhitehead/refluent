@@ -15,7 +15,7 @@ export default function(...selectors) {
 
     if (
       (!selectors.length && map.length === 1) ||
-      map.length === selectors.length
+      map.length <= selectors.length
     ) {
       const maps: any[] = [];
       let initial;

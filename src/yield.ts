@@ -7,9 +7,11 @@ export default function(...selectors) {
   return getComp => () => {
     const map = selectors.pop();
 
+    if (!selectors.length && !getComp) return map;
+
     if (!selectors.length && typeof map !== 'function') return () => map;
 
-    if (map.length === selectors.length) {
+    if (map.length === selectors.length || !getComp) {
       const globalMap = memize(map, { maxSize: 50 });
       return class YieldPure extends React.Component {
         map;
@@ -24,9 +26,8 @@ export default function(...selectors) {
 
     let C;
     return class Yield extends React.Component<any> {
-      state = { cache: createCache(), next: this.props.next };
+      state = { cache: createCache(), next: null };
       static getDerivedStateFromProps(props, state) {
-        if (!getComp) return null;
         return state.cache({
           next: (extra: any = props => props) =>
             React.createElement(

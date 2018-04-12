@@ -2,20 +2,21 @@ import * as React from 'react';
 
 import branchMap from './branch';
 import doMap from './do';
-import pickMap from './pick';
+import filterMap from './filter';
 import yieldMap from './yield';
 import { root } from './utils';
 
-const wrap = base => {
-  const chain = map => wrap(getComp => base(map(getComp)));
+const wrap = mapGetComp => {
+  const chain = map => wrap(getComp => mapGetComp(map(getComp)));
   let comp;
   return Object.assign(
-    props => React.createElement(comp || (comp = base()()), props),
+    props => React.createElement(comp || (comp = mapGetComp()()), props),
     {
-      apply: hoc => chain(getComp => () => (hoc ? hoc(getComp()) : getComp())),
       branch: (test, pass, fail?) => chain(branchMap(test, pass, fail)),
       do: (...selectors) => chain(doMap(...selectors)),
-      pick: (...args) => chain(pickMap(...args)),
+      filter: (...args) => chain(filterMap(...args)),
+      transform: hoc =>
+        chain(getComp => (hoc ? () => hoc(getComp()) : getComp)),
       yield: (...selectors) => chain(yieldMap(...selectors)),
     },
   );
@@ -48,15 +49,12 @@ export type Next<N> = (
 
 export interface Comp<TOuter = Obj, TInner = TOuter>
   extends React.StatelessComponent<TOuter> {
-  apply<T extends Obj = any>(
-    map:
-      | ((
-          comp: React.StatelessComponent<TOuter> | React.ComponentClass<TOuter>,
-        ) => React.StatelessComponent<T> | React.ComponentClass<T>)
-      | Falsy,
-  ): Comp<T, TInner>;
-  branch<T extends Obj = {}, N extends Obj | undefined = any>(
-    test: (props: TInner) => any,
+  branch<
+    T extends Obj = {},
+    N extends Obj | undefined = any,
+    S extends Selector<TInner, T> = any
+  >(
+    test: S,
     pass:
       | React.StatelessComponent<TInner & T & { next: Next<N> }>
       | React.ComponentClass<TInner & T & { next: Next<N> }>,
@@ -758,23 +756,23 @@ export interface Comp<TOuter = Obj, TInner = TOuter>
       commit?: true,
     ) => Partial<T> | (() => void) | Falsy,
   ): Comp<TOuter, TInner & T>;
-  pick(cache?: boolean): Comp<TOuter, TInner>;
-  pick(key: string, cache?: boolean): Comp<TOuter, TInner>;
-  pick(key1: string, key2: string, cache?: boolean): Comp<TOuter, TInner>;
-  pick(
+  filter(cache?: boolean): Comp<TOuter, TInner>;
+  filter(key: string, cache?: boolean): Comp<TOuter, TInner>;
+  filter(key1: string, key2: string, cache?: boolean): Comp<TOuter, TInner>;
+  filter(
     key1: string,
     key2: string,
     key3: string,
     cache?: boolean,
   ): Comp<TOuter, TInner>;
-  pick(
+  filter(
     key1: string,
     key2: string,
     key3: string,
     key4: string,
     cache?: boolean,
   ): Comp<TOuter, TInner>;
-  pick(
+  filter(
     key1: string,
     key2: string,
     key3: string,
@@ -782,7 +780,7 @@ export interface Comp<TOuter = Obj, TInner = TOuter>
     key5: string,
     cache?: boolean,
   ): Comp<TOuter, TInner>;
-  pick(
+  filter(
     key1: string,
     key2: string,
     key3: string,
@@ -791,7 +789,7 @@ export interface Comp<TOuter = Obj, TInner = TOuter>
     key6: string,
     cache?: boolean,
   ): Comp<TOuter, TInner>;
-  pick(
+  filter(
     key1: string,
     key2: string,
     key3: string,
@@ -801,7 +799,7 @@ export interface Comp<TOuter = Obj, TInner = TOuter>
     key7: string,
     cache?: boolean,
   ): Comp<TOuter, TInner>;
-  pick(
+  filter(
     key1: string,
     key2: string,
     key3: string,
@@ -812,7 +810,7 @@ export interface Comp<TOuter = Obj, TInner = TOuter>
     key8: string,
     cache?: boolean,
   ): Comp<TOuter, TInner>;
-  pick(
+  filter(
     key1: string,
     key2: string,
     key3: string,
@@ -824,7 +822,7 @@ export interface Comp<TOuter = Obj, TInner = TOuter>
     key9: string,
     cache?: boolean,
   ): Comp<TOuter, TInner>;
-  pick(
+  filter(
     key1: string,
     key2: string,
     key3: string,
@@ -837,6 +835,13 @@ export interface Comp<TOuter = Obj, TInner = TOuter>
     key10: string,
     cache?: boolean,
   ): Comp<TOuter, TInner>;
+  transform<T extends Obj = any>(
+    map:
+      | ((
+          comp: React.StatelessComponent<TOuter> | React.ComponentClass<TOuter>,
+        ) => React.StatelessComponent<T> | React.ComponentClass<T>)
+      | Falsy,
+  ): Comp<T, TInner>;
   yield<T extends Obj = {}, N extends Obj | undefined = any>(
     comp:
       | React.StatelessComponent<TInner & T & { next: Next<N> }>
