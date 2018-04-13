@@ -1,8 +1,6 @@
 import * as React from 'react';
 
-import branchMap from './branch';
 import doMap from './do';
-import filterMap from './filter';
 import yieldMap from './yield';
 import { root } from './utils';
 
@@ -12,9 +10,7 @@ const wrap = mapGetComp => {
   return Object.assign(
     props => React.createElement(comp || (comp = mapGetComp()()), props),
     {
-      branch: (test, pass, fail?) => chain(branchMap(test, pass, fail)),
       do: (...selectors) => chain(doMap(...selectors)),
-      filter: (...args) => chain(filterMap(...args)),
       transform: hoc =>
         chain(getComp => (hoc ? () => hoc(getComp()) : getComp)),
       yield: (...selectors) => chain(yieldMap(...selectors)),
@@ -49,19 +45,6 @@ export type Next<N> = (
 
 export interface Comp<TOuter = Obj, TInner = TOuter>
   extends React.StatelessComponent<TOuter> {
-  branch<
-    T extends Obj = {},
-    N extends Obj | undefined = any,
-    S extends Selector<TInner, T> = any
-  >(
-    test: S,
-    pass:
-      | React.StatelessComponent<TInner & T & { next: Next<N> }>
-      | React.ComponentClass<TInner & T & { next: Next<N> }>,
-    fail?:
-      | React.StatelessComponent<TInner & T & { next: Next<N> }>
-      | React.ComponentClass<TInner & T & { next: Next<N> }>,
-  ): Comp<TOuter & T, TInner & T & N>;
   do<T extends Obj = any>(
     map: ((
       props$: (() => TInner) &
@@ -756,85 +739,6 @@ export interface Comp<TOuter = Obj, TInner = TOuter>
       commit?: true,
     ) => Partial<T> | (() => void) | Falsy,
   ): Comp<TOuter, TInner & T>;
-  filter(cache?: boolean): Comp<TOuter, TInner>;
-  filter(key: string, cache?: boolean): Comp<TOuter, TInner>;
-  filter(key1: string, key2: string, cache?: boolean): Comp<TOuter, TInner>;
-  filter(
-    key1: string,
-    key2: string,
-    key3: string,
-    cache?: boolean,
-  ): Comp<TOuter, TInner>;
-  filter(
-    key1: string,
-    key2: string,
-    key3: string,
-    key4: string,
-    cache?: boolean,
-  ): Comp<TOuter, TInner>;
-  filter(
-    key1: string,
-    key2: string,
-    key3: string,
-    key4: string,
-    key5: string,
-    cache?: boolean,
-  ): Comp<TOuter, TInner>;
-  filter(
-    key1: string,
-    key2: string,
-    key3: string,
-    key4: string,
-    key5: string,
-    key6: string,
-    cache?: boolean,
-  ): Comp<TOuter, TInner>;
-  filter(
-    key1: string,
-    key2: string,
-    key3: string,
-    key4: string,
-    key5: string,
-    key6: string,
-    key7: string,
-    cache?: boolean,
-  ): Comp<TOuter, TInner>;
-  filter(
-    key1: string,
-    key2: string,
-    key3: string,
-    key4: string,
-    key5: string,
-    key6: string,
-    key7: string,
-    key8: string,
-    cache?: boolean,
-  ): Comp<TOuter, TInner>;
-  filter(
-    key1: string,
-    key2: string,
-    key3: string,
-    key4: string,
-    key5: string,
-    key6: string,
-    key7: string,
-    key8: string,
-    key9: string,
-    cache?: boolean,
-  ): Comp<TOuter, TInner>;
-  filter(
-    key1: string,
-    key2: string,
-    key3: string,
-    key4: string,
-    key5: string,
-    key6: string,
-    key7: string,
-    key8: string,
-    key9: string,
-    key10: string,
-    cache?: boolean,
-  ): Comp<TOuter, TInner>;
   transform<T extends Obj = any>(
     map:
       | ((

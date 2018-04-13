@@ -22,14 +22,15 @@ const stringify = v => {
 const objCache = new WeakMap();
 const strCache = new Map();
 
-export default (full?: boolean) => {
+export default () => {
   const baseMethods = {};
   const methods = {};
-  return obj =>
+  return (obj, full?: boolean) =>
     keysToObject(Object.keys(obj), k => {
       const value = obj[k];
       const type = Object.prototype.toString.call(value);
       if (type === '[object Function]') {
+        if (value.noCache) return value;
         baseMethods[k] = value;
         return (
           methods[k] || (methods[k] = (...args) => baseMethods[k](...args))

@@ -25,19 +25,33 @@ export default function(...selectors) {
     }
 
     let C;
+    class YieldNext extends React.PureComponent {
+      render() {
+        return React.createElement(C, this.props);
+      }
+    }
     return class Yield extends React.Component<any> {
       state = { cache: createCache(), next: null };
       static getDerivedStateFromProps(props, state) {
-        return state.cache({
-          next: (extra: any = props => props) =>
-            React.createElement(
-              C || (C = getComp()),
-              clearUndef({
-                ...(typeof extra === 'function' ? extra(props) : extra),
-                next: props.next,
-              }),
-            ),
-        });
+        return {
+          next: Object.assign(
+            (extra, fullCache) => {
+              if (!C) C = getComp();
+              if (!extra) return React.createElement(C, props);
+              return React.createElement(
+                YieldNext,
+                state.cache(
+                  clearUndef({
+                    ...(typeof extra === 'function' ? extra(props) : extra),
+                    next: props.next,
+                  }),
+                  fullCache,
+                ),
+              );
+            },
+            { noCache: true },
+          ),
+        };
       }
       render() {
         if (!selectors.length) {

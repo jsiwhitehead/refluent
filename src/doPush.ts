@@ -30,10 +30,10 @@ const createWatcher = (selectors, map, extra?) => {
       if (commit) {
         const value = map.apply(null, args.concat(true));
         if (typeof value === 'function') return value;
-        if (value) Object.assign(current.pushed, current.cache(value));
+        if (value) Object.assign(current.pushed, current.cache(value, true));
       } else {
         const { pushed, callbacks } = memoizedMap(args);
-        Object.assign(current.pushed, current.cache(pushed));
+        Object.assign(current.pushed, current.cache(pushed, true));
         current.callbacks.push(...callbacks);
       }
     },
@@ -93,12 +93,12 @@ export default function(C, selectors, map) {
           Object.assign(captureCurrent.pushed, update || {});
           if (callback) captureCurrent.callbacks.push({ call: callback });
         } else if (current) {
-          Object.assign(current.pushed, current.cache(update || {}));
+          Object.assign(current.pushed, current.cache(update || {}, true));
           if (callback) current.callbacks.push({ call: callback });
         } else if (this.mounted) {
           this.setState(prev =>
             run(this.props, prev, () => {
-              Object.assign(current.pushed, prev.cache(update || {}));
+              Object.assign(current.pushed, prev.cache(update || {}, true));
               if (callback) current.callbacks.push({ call: callback });
             }),
           );
@@ -107,7 +107,10 @@ export default function(C, selectors, map) {
       this.init = (prev?) =>
         run(
           this.props,
-          { cache: createCache(true) },
+          {
+            cache: (prev && prev.cache) || createCache(),
+            pushed: prev && prev.pushed,
+          },
           () => {
             watch = (sels, m, extra?) => {
               current.watchers.push(
@@ -135,7 +138,7 @@ export default function(C, selectors, map) {
                 if (prev) this.unmount = value;
                 else value();
               } else if (value) {
-                Object.assign(current.pushed, current.cache(value));
+                Object.assign(current.pushed, current.cache(value, true));
               }
             }
             watch = null;
@@ -149,7 +152,7 @@ export default function(C, selectors, map) {
     }
     componentDidMount() {
       this.mounted = true;
-      this.setState(this.init(this.state.pushed));
+      this.setState(this.init(this.state));
     }
     componentDidUpdate() {
       const next = run(
