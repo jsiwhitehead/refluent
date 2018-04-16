@@ -2,22 +2,21 @@ import * as React from 'react';
 
 import doMap from './do';
 import yieldMap from './yield';
-import { root } from './utils';
+import { Root } from './utils';
 
-const wrap = mapGetComp => {
-  const chain = map => wrap(getComp => mapGetComp(map(getComp)));
+const wrap = mapComp => {
+  const chain = map => wrap(C => mapComp(map(C)));
   let comp;
   return Object.assign(
-    props => React.createElement(comp || (comp = mapGetComp()()), props),
+    props => React.createElement(comp || (comp = mapComp()), props),
     {
       do: (...selectors) => chain(doMap(...selectors)),
-      transform: hoc =>
-        chain(getComp => (hoc ? () => hoc(getComp()) : getComp)),
-      yield: (...selectors) => chain(yieldMap(...selectors)),
+      transform: hoc => chain(C => (hoc ? hoc(C) : C)),
+      yield: YieldComp => chain(yieldMap(YieldComp)),
     },
   );
 };
-export const Comp = wrap((getComp = root) => getComp) as Comp<any>;
+export const Comp = wrap((C = Root) => C) as Comp<any>;
 
 export type Falsy = false | null | undefined | void;
 
@@ -38,10 +37,6 @@ export type Selected<S = any, P extends Obj = any> = S extends ((
   : S extends string
     ? P[S]
     : S extends number ? P[S] : S extends true ? P : null;
-
-export type Next<N> = (
-  props?: N | ((props: any) => N),
-) => React.ReactElement<any> | null;
 
 export interface Comp<TOuter = Obj, TInner = TOuter>
   extends React.StatelessComponent<TOuter> {
@@ -276,7 +271,6 @@ export interface Comp<TOuter = Obj, TInner = TOuter>
       commit?: true,
     ) => T | (() => void) | Falsy),
   ): Comp<TOuter, TInner & T>;
-  do<T extends Obj = {}>(obj: T): Comp<TOuter, TInner & T>;
   do<T extends Obj = {}, S extends Selector<TInner> = any>(
     selector: S,
     map: (value: Selected<S, TInner>) => T | Falsy,
@@ -748,253 +742,21 @@ export interface Comp<TOuter = Obj, TInner = TOuter>
   ): Comp<T, TInner>;
   yield<T extends Obj = {}, N extends Obj | undefined = any>(
     comp:
-      | React.StatelessComponent<TInner & T & { next: Next<N> }>
-      | React.ComponentClass<TInner & T & { next: Next<N> }>,
-  ): Comp<TOuter & T, TInner & T & N>;
-  yield(elem: React.ReactElement<any> | null): Comp<TOuter, {}>;
-  yield<
-    T extends Obj = {},
-    N extends Obj | undefined = any,
-    S extends Selector<TInner & T> = any
-  >(
-    selector: S,
-    map: (
-      value: Selected<S, TInner & T>,
-      next: Next<N>,
-    ) => React.ReactElement<any> | null,
-  ): Comp<TOuter & T, TInner & T & N>;
-  yield<
-    T extends Obj = {},
-    N extends Obj | undefined = any,
-    S1 extends Selector<TInner & T> = any,
-    S2 extends Selector<TInner & T> = any
-  >(
-    selector1: S1,
-    selector2: S2,
-    map: (
-      value1: Selected<S1, TInner & T>,
-      value2: Selected<S2, TInner & T>,
-      next: Next<N>,
-    ) => React.ReactElement<any> | null,
-  ): Comp<TOuter & T, TInner & T & N>;
-  yield<
-    T extends Obj = {},
-    N extends Obj | undefined = any,
-    S1 extends Selector<TInner & T> = any,
-    S2 extends Selector<TInner & T> = any,
-    S3 extends Selector<TInner & T> = any
-  >(
-    selector1: S1,
-    selector2: S2,
-    selector3: S3,
-    map: (
-      value1: Selected<S1, TInner & T>,
-      value2: Selected<S2, TInner & T>,
-      value3: Selected<S3, TInner & T>,
-      next: Next<N>,
-    ) => React.ReactElement<any> | null,
-  ): Comp<TOuter & T, TInner & T & N>;
-  yield<
-    T extends Obj = {},
-    N extends Obj | undefined = any,
-    S1 extends Selector<TInner & T> = any,
-    S2 extends Selector<TInner & T> = any,
-    S3 extends Selector<TInner & T> = any,
-    S4 extends Selector<TInner & T> = any
-  >(
-    selector1: S1,
-    selector2: S2,
-    selector3: S3,
-    selector4: S4,
-    map: (
-      value1: Selected<S1, TInner & T>,
-      value2: Selected<S2, TInner & T>,
-      value3: Selected<S3, TInner & T>,
-      value4: Selected<S4, TInner & T>,
-      next: Next<N>,
-    ) => React.ReactElement<any> | null,
-  ): Comp<TOuter & T, TInner & T & N>;
-  yield<
-    T extends Obj = {},
-    N extends Obj | undefined = any,
-    S1 extends Selector<TInner & T> = any,
-    S2 extends Selector<TInner & T> = any,
-    S3 extends Selector<TInner & T> = any,
-    S4 extends Selector<TInner & T> = any,
-    S5 extends Selector<TInner & T> = any
-  >(
-    selector1: S1,
-    selector2: S2,
-    selector3: S3,
-    selector4: S4,
-    selector5: S5,
-    map: (
-      value1: Selected<S1, TInner & T>,
-      value2: Selected<S2, TInner & T>,
-      value3: Selected<S3, TInner & T>,
-      value4: Selected<S4, TInner & T>,
-      value5: Selected<S5, TInner & T>,
-      next: Next<N>,
-    ) => React.ReactElement<any> | null,
-  ): Comp<TOuter & T, TInner & T & N>;
-  yield<
-    T extends Obj = {},
-    N extends Obj | undefined = any,
-    S1 extends Selector<TInner & T> = any,
-    S2 extends Selector<TInner & T> = any,
-    S3 extends Selector<TInner & T> = any,
-    S4 extends Selector<TInner & T> = any,
-    S5 extends Selector<TInner & T> = any,
-    S6 extends Selector<TInner & T> = any
-  >(
-    selector1: S1,
-    selector2: S2,
-    selector3: S3,
-    selector4: S4,
-    selector5: S5,
-    selector6: S6,
-    map: (
-      value1: Selected<S1, TInner & T>,
-      value2: Selected<S2, TInner & T>,
-      value3: Selected<S3, TInner & T>,
-      value4: Selected<S4, TInner & T>,
-      value5: Selected<S5, TInner & T>,
-      value6: Selected<S6, TInner & T>,
-      next: Next<N>,
-    ) => React.ReactElement<any> | null,
-  ): Comp<TOuter & T, TInner & T & N>;
-  yield<
-    T extends Obj = {},
-    N extends Obj | undefined = any,
-    S1 extends Selector<TInner & T> = any,
-    S2 extends Selector<TInner & T> = any,
-    S3 extends Selector<TInner & T> = any,
-    S4 extends Selector<TInner & T> = any,
-    S5 extends Selector<TInner & T> = any,
-    S6 extends Selector<TInner & T> = any,
-    S7 extends Selector<TInner & T> = any
-  >(
-    selector1: S1,
-    selector2: S2,
-    selector3: S3,
-    selector4: S4,
-    selector5: S5,
-    selector6: S6,
-    selector7: S7,
-    map: (
-      value1: Selected<S1, TInner & T>,
-      value2: Selected<S2, TInner & T>,
-      value3: Selected<S3, TInner & T>,
-      value4: Selected<S4, TInner & T>,
-      value5: Selected<S5, TInner & T>,
-      value6: Selected<S6, TInner & T>,
-      value7: Selected<S7, TInner & T>,
-      next: Next<N>,
-    ) => React.ReactElement<any> | null,
-  ): Comp<TOuter & T, TInner & T & N>;
-  yield<
-    T extends Obj = {},
-    N extends Obj | undefined = any,
-    S1 extends Selector<TInner & T> = any,
-    S2 extends Selector<TInner & T> = any,
-    S3 extends Selector<TInner & T> = any,
-    S4 extends Selector<TInner & T> = any,
-    S5 extends Selector<TInner & T> = any,
-    S6 extends Selector<TInner & T> = any,
-    S7 extends Selector<TInner & T> = any,
-    S8 extends Selector<TInner & T> = any
-  >(
-    selector1: S1,
-    selector2: S2,
-    selector3: S3,
-    selector4: S4,
-    selector5: S5,
-    selector6: S6,
-    selector7: S7,
-    selector8: S8,
-    map: (
-      value1: Selected<S1, TInner & T>,
-      value2: Selected<S2, TInner & T>,
-      value3: Selected<S3, TInner & T>,
-      value4: Selected<S4, TInner & T>,
-      value5: Selected<S5, TInner & T>,
-      value6: Selected<S6, TInner & T>,
-      value7: Selected<S7, TInner & T>,
-      value8: Selected<S8, TInner & T>,
-      next: Next<N>,
-    ) => React.ReactElement<any> | null,
-  ): Comp<TOuter & T, TInner & T & N>;
-  yield<
-    T extends Obj = {},
-    N extends Obj | undefined = any,
-    S1 extends Selector<TInner & T> = any,
-    S2 extends Selector<TInner & T> = any,
-    S3 extends Selector<TInner & T> = any,
-    S4 extends Selector<TInner & T> = any,
-    S5 extends Selector<TInner & T> = any,
-    S6 extends Selector<TInner & T> = any,
-    S7 extends Selector<TInner & T> = any,
-    S8 extends Selector<TInner & T> = any,
-    S9 extends Selector<TInner & T> = any
-  >(
-    selector1: S1,
-    selector2: S2,
-    selector3: S3,
-    selector4: S4,
-    selector5: S5,
-    selector6: S6,
-    selector7: S7,
-    selector8: S8,
-    selector9: S9,
-    map: (
-      value1: Selected<S1, TInner & T>,
-      value2: Selected<S2, TInner & T>,
-      value3: Selected<S3, TInner & T>,
-      value4: Selected<S4, TInner & T>,
-      value5: Selected<S5, TInner & T>,
-      value6: Selected<S6, TInner & T>,
-      value7: Selected<S7, TInner & T>,
-      value8: Selected<S8, TInner & T>,
-      value9: Selected<S9, TInner & T>,
-      next: Next<N>,
-    ) => React.ReactElement<any> | null,
-  ): Comp<TOuter & T, TInner & T & N>;
-  yield<
-    T extends Obj = {},
-    N extends Obj | undefined = any,
-    S1 extends Selector<TInner & T> = any,
-    S2 extends Selector<TInner & T> = any,
-    S3 extends Selector<TInner & T> = any,
-    S4 extends Selector<TInner & T> = any,
-    S5 extends Selector<TInner & T> = any,
-    S6 extends Selector<TInner & T> = any,
-    S7 extends Selector<TInner & T> = any,
-    S8 extends Selector<TInner & T> = any,
-    S9 extends Selector<TInner & T> = any,
-    S10 extends Selector<TInner & T> = any
-  >(
-    selector1: S1,
-    selector2: S2,
-    selector3: S3,
-    selector4: S4,
-    selector5: S5,
-    selector6: S6,
-    selector7: S7,
-    selector8: S8,
-    selector9: S9,
-    selector10: S10,
-    map: (
-      value1: Selected<S1, TInner & T>,
-      value2: Selected<S2, TInner & T>,
-      value3: Selected<S3, TInner & T>,
-      value4: Selected<S4, TInner & T>,
-      value5: Selected<S5, TInner & T>,
-      value6: Selected<S6, TInner & T>,
-      value7: Selected<S7, TInner & T>,
-      value8: Selected<S8, TInner & T>,
-      value9: Selected<S9, TInner & T>,
-      value10: Selected<S10, TInner & T>,
-      next: Next<N>,
-    ) => React.ReactElement<any> | null,
+      | React.StatelessComponent<
+          TInner &
+            T & {
+              next: (
+                props?: N | ((props: any) => N),
+              ) => React.ReactElement<any> | null;
+            }
+        >
+      | React.ComponentClass<
+          TInner &
+            T & {
+              next: (
+                props?: N | ((props: any) => N),
+              ) => React.ReactElement<any> | null;
+            }
+        >,
   ): Comp<TOuter & T, TInner & T & N>;
 }

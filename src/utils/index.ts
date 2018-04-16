@@ -41,9 +41,8 @@ export const select = (selector, props, pushed?) => {
   return null;
 };
 
-const Root = ({ next, children, ...props }) => {
+export const Root = ({ next, children, ...props }) => {
   if (next) return next({ ...props, children });
   if (typeof children === 'function') return children(props);
   return children || null;
 };
-export const root = () => Root as any;
