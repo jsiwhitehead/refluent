@@ -1,6 +1,7 @@
 import * as React from 'react';
 
-import { clearUndef, createCache } from './utils';
+import createCache from './cache';
+import { clearUndef } from './utils';
 
 export default function(YieldComp) {
   return C => {
@@ -16,7 +17,7 @@ export default function(YieldComp) {
       static getDerivedStateFromProps(props, state) {
         return {
           next: Object.assign(
-            (extra, fullCache) => {
+            (extra, cache) => {
               if (!extra) return React.createElement(C, props);
               return React.createElement(
                 YieldNext,
@@ -25,7 +26,7 @@ export default function(YieldComp) {
                     ...(typeof extra === 'function' ? extra(props) : extra),
                     next: props.next,
                   }),
-                  fullCache,
+                  cache,
                 ),
               ) as any;
             },

@@ -28,6 +28,7 @@ export default () => {
   return (obj, full?: boolean) =>
     keysToObject(Object.keys(obj), k => {
       const value = obj[k];
+      if (k === 'children') return obj[k];
       const type = Object.prototype.toString.call(value);
       if (type === '[object Function]') {
         if (value.noCache) return value;

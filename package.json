@@ -1,7 +1,7 @@
 {
   "name": "refluent",
   "version": "0.1.0",
-  "description": "A React toolkit for enhanced component building",
+  "description": "Alternative React component API",
   "author": "Jon Whitehead",
   "license": "MIT",
   "main": "lib/index.js",
@@ -15,8 +15,8 @@
   },
   "devDependencies": {
     "@types/react": "^16.3.11",
-    "prettier": "^1.12.0",
-    "react": "^16.3.1",
+    "prettier": "^1.12.1",
+    "react": "^16.3.2",
     "rimraf": "^2.6.2",
     "typescript": "^2.8.1"
   },

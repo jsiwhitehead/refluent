@@ -1,14 +1,8 @@
 import * as React from 'react';
 import * as memize from 'memize';
 
-import {
-  clearUndef,
-  createCache,
-  isPlain,
-  Root,
-  shallowEqual,
-  select,
-} from './utils';
+import createCache from './cache';
+import { clearUndef, isPlain, Root, shallowEqual, select } from './utils';
 
 let currentProps;
 let current;

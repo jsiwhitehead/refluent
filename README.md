@@ -1,6 +1,6 @@
 # Refluent
 
-### A React toolkit for enhanced component building.
+### Alternative React component API.
 
 ```
 yarn add refluent

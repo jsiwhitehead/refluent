@@ -11,7 +11,7 @@ const wrap = mapComp => {
     props => React.createElement(comp || (comp = mapComp()), props),
     {
       do: (...selectors) => chain(doMap(...selectors)),
-      transform: hoc => chain(C => (hoc ? hoc(C) : C)),
+      transform: hoc => chain((C = Root) => (hoc ? hoc(C) : C)),
       yield: YieldComp => chain(yieldMap(YieldComp)),
     },
   );

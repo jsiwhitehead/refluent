@@ -1,5 +1,3 @@
-export { default as createCache } from './cache';
-
 export const isObject = x =>
   Object.prototype.toString.call(x) === '[object Object]';
 
