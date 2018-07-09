@@ -4,83 +4,173 @@ import * as memize from 'memize';
 import createCache from './cache';
 import { clearUndef, isPlain, Root, shallowEqual, select } from './utils';
 
-let currentProps;
-let current;
-let captureCurrent;
-let watch;
+class Runner {
+  selectors;
+  map;
+  getState;
+  setState;
 
-const createWatcher = (selectors, map, extra?) => {
-  const memoizedMap = memize(
-    args => {
-      captureCurrent = { pushed: {}, callbacks: [] };
-      const value = map.apply(null, args);
-      if (typeof value === 'function') value();
-      else if (value) Object.assign(captureCurrent.pushed, value);
-      const result = captureCurrent;
-      captureCurrent = null;
-      return result;
-    },
-    { maxSize: 50 },
-  );
-  return {
-    getArgs: () =>
-      selectors
-        .map(s => select(s, currentProps, current.pushed))
-        .concat(extra || []),
-    run: (args, commit) => {
-      if (commit) {
-        const value = map.apply(null, args.concat(true));
-        if (typeof value === 'function') return value;
-        if (value) Object.assign(current.pushed, current.cache(value, true));
-      } else {
-        const { pushed, callbacks } = memoizedMap(args);
-        Object.assign(current.pushed, current.cache(pushed, true));
-        current.callbacks.push(...callbacks);
-      }
-    },
-  };
-};
-const runWatcher = (watcher, commit) => {
-  const lastArgs = watcher[commit ? 'commitArgs' : 'renderArgs'];
-  const args = (commit && watcher.renderArgs) || watcher.getArgs();
-  if (!lastArgs || args.some((a, i) => a !== lastArgs[i])) {
-    if (commit && watcher.stop) watcher.stop();
-    const stop = watcher.run(args, commit);
-    if (!commit) {
-      if (stop) stop();
-      return { ...watcher, renderArgs: args };
-    }
-    return { ...watcher, commitArgs: args, renderArgs: args, stop };
+  cache = createCache();
+  mounted = false;
+  unmount;
+
+  capture: null | { pushed: any; callbacks: any } = null;
+  active: null | {
+    props: any;
+    state: { watchers: any; pushed: any; callbacks: any };
+  } = null;
+
+  constructor(selectors, map, getState, setState) {
+    this.selectors = selectors;
+    this.map = map;
+    this.getState = getState;
+    this.setState = setState;
   }
-  return watcher;
-};
 
-const runLayer = commit => {
-  const prev = { ...current.pushed };
-  current.watchers = current.watchers.map(w => runWatcher(w, commit));
-  if (!shallowEqual(current.pushed, prev)) runLayer(commit);
-};
+  createWatcher(selectors, map, extra?) {
+    const memoizedMap = memize(
+      args => {
+        this.capture = { pushed: {}, callbacks: [] };
+        const value = map.apply(null, args);
+        if (typeof value === 'function') value();
+        else if (value) Object.assign(this.capture.pushed, value);
+        const result = this.capture;
+        this.capture = null;
+        return result;
+      },
+      { maxSize: 50 },
+    );
+    return {
+      getArgs: () =>
+        selectors
+          .map(s => select(s, this.active!.props, this.active!.state.pushed))
+          .concat(extra || []),
+      run: (args, commit) => {
+        if (commit) {
+          const value = map.apply(null, args.concat(true));
+          if (typeof value === 'function') return value;
+          if (value) {
+            Object.assign(this.active!.state.pushed, this.cache(value, true));
+          }
+        } else {
+          const { pushed, callbacks } = memoizedMap(args);
+          Object.assign(this.active!.state.pushed, this.cache(pushed, true));
+          this.active!.state.callbacks.push(...callbacks);
+        }
+      },
+    };
+  }
 
-const run = (props, state, func?, commit?) => {
-  currentProps = props;
-  current = {
-    ...state,
-    watchers: state.watchers || [],
-    pushed: { ...(state.pushed || {}) },
-    callbacks: [...(state.callbacks || [])],
+  runWatcher(watcher, commit) {
+    const lastArgs = watcher[commit ? 'commitArgs' : 'renderArgs'];
+    const args = (commit && watcher.renderArgs) || watcher.getArgs();
+    if (!lastArgs || args.some((a, i) => a !== lastArgs[i])) {
+      if (commit && watcher.stop) watcher.stop();
+      const stop = watcher.run(args, commit);
+      if (!commit) {
+        if (stop) stop();
+        return { ...watcher, renderArgs: args };
+      }
+      return { ...watcher, commitArgs: args, renderArgs: args, stop };
+    }
+    return watcher;
+  }
+
+  runLayer(commit) {
+    const prev = { ...this.active!.state.pushed };
+    this.active!.state.watchers = this.active!.state.watchers.map(w =>
+      this.runWatcher(w, commit),
+    );
+    if (!shallowEqual(this.active!.state.pushed, prev)) this.runLayer(commit);
+  }
+
+  run(props, state, func?, commit?) {
+    this.active = {
+      props,
+      state: {
+        watchers: state.watchers || [],
+        pushed: { ...(state.pushed || {}) },
+        callbacks: [...(state.callbacks || [])],
+      },
+    };
+    if (func) func();
+    this.runLayer(commit);
+    const result = this.active.state;
+    this.active = null;
+    Object.keys(result).forEach(k => {
+      if (state[k] && shallowEqual(result[k], state[k])) result[k] = state[k];
+    });
+    if (shallowEqual(result, state)) return null;
+    result.callbacks = result.callbacks.filter(c => !c.done);
+    return result;
+  }
+
+  push = (update, callback?) => {
+    if (this.capture) {
+      Object.assign(this.capture.pushed, update || {});
+      if (callback) this.capture.callbacks.push({ call: callback });
+    } else if (this.active) {
+      Object.assign(this.active.state.pushed, this.cache(update || {}, true));
+      if (callback) this.active.state.callbacks.push({ call: callback });
+    } else if (this.mounted) {
+      this.setState((props, state) =>
+        this.run(props, state, () => {
+          Object.assign(
+            this.active!.state.pushed,
+            this.cache(update || {}, true),
+          );
+          if (callback) this.active!.state.callbacks.push({ call: callback });
+        }),
+      );
+    }
   };
-  if (func) func();
-  runLayer(commit);
-  const result = current;
-  currentProps = null;
-  current = null;
-  ['watchers', 'pushed', 'callbacks'].forEach(k => {
-    if (state[k] && shallowEqual(result[k], state[k])) result[k] = state[k];
-  });
-  if (shallowEqual(result, state)) return null;
-  result.callbacks = result.callbacks.filter(c => !c.done);
-  return result;
-};
+
+  load(props, state?) {
+    if (state) this.mounted = true;
+    return this.run(
+      props,
+      { pushed: state && state.pushed },
+      () => {
+        let loaded = false;
+        const watch: any = (sels, m, extra?) => {
+          this.active!.state.watchers.push(
+            this.runWatcher(this.createWatcher(sels, m, extra), !!state),
+          );
+        };
+        if (this.selectors.length) {
+          watch(this.selectors, this.map, this.push);
+        } else {
+          const value = this.map(
+            (...sels) => {
+              const m = sels.pop();
+              if (!sels.length) {
+                if (this.capture) {
+                  throw new Error('Get called in render');
+                }
+                if (this.active) {
+                  return m ? this.active.state.pushed : this.active.props;
+                }
+                return this.getState(m);
+              }
+              if (loaded) throw new Error('Watch called after load');
+              watch(sels, m);
+            },
+            this.push,
+            !!state,
+          );
+          if (typeof value === 'function') {
+            if (state) this.unmount = value;
+            else value();
+          } else if (value) {
+            Object.assign(this.active!.state.pushed, this.cache(value, true));
+          }
+        }
+        loaded = true;
+      },
+      !!state,
+    );
+  }
+}
 
 export default function(...selectors) {
   return (C: any = Root) => {
@@ -129,100 +219,53 @@ export default function(...selectors) {
     }
 
     return class Do extends React.Component<any, any> {
-      mounted = false;
-      init;
-      unmount;
       constructor(props) {
         super(props);
-        const push = (update, callback?) => {
-          if (captureCurrent) {
-            Object.assign(captureCurrent.pushed, update || {});
-            if (callback) captureCurrent.callbacks.push({ call: callback });
-          } else if (current) {
-            Object.assign(current.pushed, current.cache(update || {}, true));
-            if (callback) current.callbacks.push({ call: callback });
-          } else if (this.mounted) {
-            this.setState(prev =>
-              run(this.props, prev, () => {
-                Object.assign(current.pushed, prev.cache(update || {}, true));
-                if (callback) current.callbacks.push({ call: callback });
-              }),
-            );
-          }
-        };
-        this.init = (prev?) =>
-          run(
-            this.props,
-            {
-              cache: (prev && prev.cache) || createCache(),
-              pushed: prev && prev.pushed,
-            },
-            () => {
-              watch = (sels, m, extra?) => {
-                current.watchers.push(
-                  runWatcher(createWatcher(sels, m, extra), !!prev),
-                );
-              };
-              if (selectors.length) {
-                watch(selectors, map, push);
-              } else {
-                const value = map(
-                  (...sels) => {
-                    const m = sels.pop();
-                    if (!sels.length) {
-                      if (captureCurrent)
-                        throw new Error('Get called in render');
-                      if (current) return m ? current.pushed : currentProps;
-                      return m ? this.state.pushed : this.props;
-                    }
-                    if (!watch) throw new Error('Watch called after init');
-                    watch(sels, m);
-                  },
-                  push,
-                  !!prev,
-                );
-                if (typeof value === 'function') {
-                  if (prev) this.unmount = value;
-                  else value();
-                } else if (value) {
-                  Object.assign(current.pushed, current.cache(value, true));
-                }
-              }
-              watch = null;
-            },
-            !!prev,
-          );
-        this.state = this.init();
+        const runner = new Runner(
+          selectors,
+          map,
+          v => (v ? this.state.state.pushed : this.props),
+          func => {
+            this.setState(({ state }) => {
+              const next = func(this.props, state);
+              return next ? { state: next } : null;
+            });
+          },
+        );
+        this.state = { runner, state: runner.load(this.props) };
       }
-      static getDerivedStateFromProps(props, state) {
-        return run(props, state);
+      static getDerivedStateFromProps(props, { runner, state }) {
+        const next = runner.run(props, state);
+        return next ? { state: next } : null;
       }
       componentDidMount() {
-        this.mounted = true;
-        this.setState(this.init(this.state));
+        const { runner, state } = this.state;
+        this.setState({ state: runner.load(this.props, state) });
       }
       componentDidUpdate() {
-        const next = run(
+        const { runner, state } = this.state;
+        const next = runner.run(
           this.props,
-          this.state,
+          state,
           () => {
-            this.state.callbacks.forEach(c => {
+            state.callbacks.forEach(c => {
               c.call();
               c.done = true;
             });
           },
           true,
         );
-        if (next) this.setState(next);
+        if (next) this.setState({ state: next });
       }
       componentWillUnmount() {
-        this.state.watchers.forEach(w => w.stop && w.stop());
-        if (this.unmount) this.unmount();
+        const { runner, state } = this.state;
+        state.watchers.forEach(w => w.stop && w.stop());
+        if (runner.unmount) runner.unmount();
       }
       render() {
         return React.createElement(
           C,
-          clearUndef({ ...this.props, ...this.state.pushed }),
+          clearUndef({ ...this.props, ...this.state.state.pushed }),
         );
       }
     };

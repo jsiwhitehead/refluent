@@ -27,7 +27,6 @@ export const isPlain = a =>
       )));
 
 export const select = (selector, props, pushed?) => {
-  if (selector === true) return props;
   switch (typeof selector) {
     case 'number':
       return props[selector];
