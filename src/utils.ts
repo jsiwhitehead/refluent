@@ -38,8 +38,9 @@ export const select = (selector, props, pushed?) => {
   return null;
 };
 
-export const Root = ({ next, children, ...props }) => {
+const YieldDefault = ({ next, children, ...props }) => {
   if (next) return next({ ...props, children });
   if (typeof children === 'function') return children(props);
   return children || null;
 };
+export const Root = YieldDefault;

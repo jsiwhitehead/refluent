@@ -172,102 +172,97 @@ class Runner {
   }
 }
 
-export default function(...selectors) {
-  return (C: any = Root) => {
-    const map = selectors.pop();
+export default (...selectors) => (C: any = Root) => {
+  const map = selectors.pop();
 
-    if (
-      (!selectors.length && map.length < 2) ||
-      map.length <= selectors.length
-    ) {
-      let mapResult = selectors.length ? {} : null;
-      const maps: any[] = selectors.length ? [[selectors, map]] : [];
-      const globalMaps = {};
-      return class DoPure extends React.Component {
-        state = { maps: {}, cache: createCache(), pushed: null as {} | null };
-        static getDerivedStateFromProps(props, state) {
-          if (!mapResult) {
-            mapResult =
-              map((...sels) => {
-                const m = sels.pop();
-                if (!sels.length) throw new Error('Get called in pure do');
-                maps.push([sels, m]);
-              }) || {};
+  if ((!selectors.length && map.length < 2) || map.length <= selectors.length) {
+    let mapResult = selectors.length ? {} : null;
+    const maps: any[] = selectors.length ? [[selectors, map]] : [];
+    const globalMaps = {};
+    return class DoPure extends React.Component {
+      state = { maps: {}, cache: createCache(), pushed: null as {} | null };
+      static getDerivedStateFromProps(props, state) {
+        if (!mapResult) {
+          mapResult =
+            map((...sels) => {
+              const m = sels.pop();
+              if (!sels.length) throw new Error('Get called in pure do');
+              maps.push([sels, m]);
+            }) || {};
+        }
+        const next = { maps: {}, pushed: {} } as any;
+        maps.forEach(([sels, m], i) => {
+          const args = sels.map(s => select(s, props));
+          if (args.every(isPlain)) {
+            globalMaps[i] = globalMaps[i] || memize(m, { maxSize: 50 });
+            Object.assign(next.pushed, globalMaps[i].apply(null, args) || {});
+          } else {
+            next.maps[i] = state.maps[i] || memize(m, { maxSize: 10 });
+            Object.assign(next.pushed, next.maps[i].apply(null, args) || {});
           }
-          const next = { maps: {}, pushed: {} } as any;
-          maps.forEach(([sels, m], i) => {
-            const args = sels.map(s => select(s, props));
-            if (args.every(isPlain)) {
-              globalMaps[i] = globalMaps[i] || memize(m, { maxSize: 50 });
-              Object.assign(next.pushed, globalMaps[i].apply(null, args) || {});
-            } else {
-              next.maps[i] = state.maps[i] || memize(m, { maxSize: 10 });
-              Object.assign(next.pushed, next.maps[i].apply(null, args) || {});
-            }
-          });
-          Object.assign(next.pushed, mapResult);
-          next.pushed = state.cache(next.pushed);
-          return next;
-        }
-        render() {
-          return React.createElement(
-            C,
-            clearUndef({ ...this.props, ...this.state.pushed }),
-          );
-        }
-      };
-    }
-
-    return class Do extends React.Component<any, any> {
-      constructor(props) {
-        super(props);
-        const runner = new Runner(
-          selectors,
-          map,
-          v => (v ? this.state.state.pushed : this.props),
-          func => {
-            this.setState(({ state }) => {
-              const next = func(this.props, state);
-              return next ? { state: next } : null;
-            });
-          },
-        );
-        this.state = { runner, state: runner.load(this.props) };
-      }
-      static getDerivedStateFromProps(props, { runner, state }) {
-        const next = runner.run(props, state);
-        return next ? { state: next } : null;
-      }
-      componentDidMount() {
-        const { runner, state } = this.state;
-        this.setState({ state: runner.load(this.props, state) });
-      }
-      componentDidUpdate() {
-        const { runner, state } = this.state;
-        const next = runner.run(
-          this.props,
-          state,
-          () => {
-            state.callbacks.forEach(c => {
-              c.call();
-              c.done = true;
-            });
-          },
-          true,
-        );
-        if (next) this.setState({ state: next });
-      }
-      componentWillUnmount() {
-        const { runner, state } = this.state;
-        state.watchers.forEach(w => w.stop && w.stop());
-        if (runner.unmount) runner.unmount();
+        });
+        Object.assign(next.pushed, mapResult);
+        next.pushed = state.cache(next.pushed);
+        return next;
       }
       render() {
         return React.createElement(
           C,
-          clearUndef({ ...this.props, ...this.state.state.pushed }),
+          clearUndef({ ...this.props, ...this.state.pushed }),
         );
       }
     };
+  }
+
+  return class Do extends React.Component<any, any> {
+    constructor(props) {
+      super(props);
+      const runner = new Runner(
+        selectors,
+        map,
+        v => (v ? this.state.state.pushed : this.props),
+        func => {
+          this.setState(({ state }) => {
+            const next = func(this.props, state);
+            return next ? { state: next } : null;
+          });
+        },
+      );
+      this.state = { runner, state: runner.load(this.props) };
+    }
+    static getDerivedStateFromProps(props, { runner, state }) {
+      const next = runner.run(props, state);
+      return next ? { state: next } : null;
+    }
+    componentDidMount() {
+      const { runner, state } = this.state;
+      this.setState({ state: runner.load(this.props, state) });
+    }
+    componentDidUpdate() {
+      const { runner, state } = this.state;
+      const next = runner.run(
+        this.props,
+        state,
+        () => {
+          state.callbacks.forEach(c => {
+            c.call();
+            c.done = true;
+          });
+        },
+        true,
+      );
+      if (next) this.setState({ state: next });
+    }
+    componentWillUnmount() {
+      const { runner, state } = this.state;
+      state.watchers.forEach(w => w.stop && w.stop());
+      if (runner.unmount) runner.unmount();
+    }
+    render() {
+      return React.createElement(
+        C,
+        clearUndef({ ...this.props, ...this.state.state.pushed }),
+      );
+    }
   };
-}
+};

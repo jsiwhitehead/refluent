@@ -25,7 +25,6 @@ yarn add refluent
   - Further details
     - [Default yield](#default-yield)
     - [Refactoring and composition](#refactoring-and-composition)
-    - [Caching initial props](#caching-initial-props)
 - [Method 3: `transform (component => component)`](#method-3-transform-component--component)
 - [Utility: `branch`](#utility-branch)
 - [Full example](#full-example)
@@ -79,7 +78,7 @@ const ShortInput = r
 
 After using React for a number of years I found myself regularly using [Recompose](https://github.com/acdlite/recompose) to write long components in the form `compose(hoc1, hoc2, ...)`. Additionally, although HOCs are formally of the shape `(props => dom) => (props => dom)`, I noticed most of the HOCs I was using were more like `props => props (=> dom)`. Together with discovering the `mapPropsStream` HOC (also from Recompose), this helped me to see components as transformations of a flow of props, along with dom output (i.e. `props1 => props2 => props3 => ... => dom`).
 
-From there, I felt the wide variety of HOCs in Recompose weren't helping express this clearly, and workied to combine `withProps`, `withHandlers`, `mapPropsStream` and `pure` into a single 'prop transformation' HOC, `do`. At the same time, `renderComponent`, `nest`, and the emergence of [render props](https://reactjs.org/docs/render-props.html) together led to the idea of a 'partial dom output' HOC, `yield`.
+From there, I felt the wide variety of HOCs in Recompose weren't helping express this clearly, and worked to combine `withProps`, `withHandlers`, `mapPropsStream` and `pure` into a single 'prop transformation' HOC, `do`. At the same time, `renderComponent`, `nest`, and the emergence of [render props](https://reactjs.org/docs/render-props.html) together led to the idea of a 'partial dom output' HOC, `yield`.
 
 Finally, after successfully rewriting the majority of my components using only these two HOCs (and `compose`), I realised I could attach them directly onto a functional component and create the fluent API system of Refluent, and hence remove the need for HOCs altogether, fully capturing the sense of components as a single flow of props and dom output.
 
@@ -174,9 +173,9 @@ The second overload allows direct access to both the incoming and pushed props (
 
 #### Caching
 
-Every `do` maintains a cache of all previously pushed props, which newly pushed ones are compared against and replaced with if they are equivalent by value (for dates, JSON etc). In addition, all pushed props which are functions are wrapped in a static 'caller' function.
+Every `do` maintains a cache of all previously pushed props, which newly pushed ones are compared against and replaced with if they are equivalent by value (for dates, JSON etc). In addition, all pushed props which are functions are wrapped in a static 'caller' function. The initial props of any Refluent component are also cached in the same way.
 
-This means pushed values change as little as possible, and can be compared for equality by reference rather than by value.
+This means props change as little as possible, and can be compared for equality by reference rather than by value during memoization (see below).
 
 **Note:** If a function prop is going to be called immediately during a `do` or `yield` call (e.g. a render prop), then give it a key of `noCache: true` to avoid being wrapped, otherwise your component wont re-render when it changes.
 
@@ -184,7 +183,7 @@ This means pushed values change as little as possible, and can be compared for e
 
 The reason `do` uses selectors and only allows for merging new props, rather than just accepting an arbitrary map `props => props`, is so that `map` can be memoized.
 
-Due to caching (above), the selected values can be compared by reference to their previous values, and `map` is only called when one or more values have changed.
+Due to caching (see above), the selected values can be compared to their previous values by reference, and `map` is only called when one or more values have changed.
 
 This means you never have to worry about pure components or `shouldComponentUpdate`, as updates only happen when they need to.
 
@@ -212,8 +211,7 @@ yield(
     ...props,
     next:
       | () => dom
-      | (nextProps, doCache?) => dom
-      | (props => nextProps, doCache?) => dom,
+      | (nextProps | props => nextProps, doCache?) => dom,
   }>
 )
 ```
@@ -267,16 +265,6 @@ r
 
 I.e. **any chain of steps in a Refluent component can be refactored out into a new component**, and called with yield, with the exact same effect.
 
-#### Caching initial props
-
-Since memoization of `do` only compares the selected values by reference, it's common to want to cache the initial props passed to your component. This can be achieved by starting with:
-
-```typescript
-r
-  .yield(({ next }) => next(props => props, true))
-  ...
-```
-
 ## Method 3: `transform (component => component)`
 
 Using Refluent removes the need for higher-order components, but for compatability with other libraries the `transform` helper method is provided.
@@ -315,15 +303,14 @@ const watchHover = r.do(
   'onMouseLeave',
   (onMouseMove, onMouseLeave, push) => ({
     hoverProps: {
-      onMouseMove: e => push({ isHovered: true }),
-      onMouseLeave: e => push({ isHovered: false }),
+      onMouseMove: () => push({ isHovered: true }),
+      onMouseLeave: () => push({ isHovered: false }),
     },
     isHovered: false,
   }),
 );
 
 const Input = r
-  .yield(({ next }) => next(props => props, true))
   .do('initial', (initial = '', push) => ({
     value: initial,
     onChange: value => push({ value }),

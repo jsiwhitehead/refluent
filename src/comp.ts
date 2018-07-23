@@ -7,16 +7,21 @@ import { Root } from './utils';
 const wrap = mapComp => {
   const chain = map => wrap(C => mapComp(map(C)));
   let comp;
-  return Object.assign(
-    props => React.createElement(comp || (comp = mapComp()), props),
-    {
-      do: (...selectors) => chain(doMap(...selectors)),
-      transform: hoc => chain((C = Root) => (hoc ? hoc(C) : C)),
-      yield: YieldComp => chain(yieldMap(YieldComp)),
-    },
-  );
+  const Refluent = props =>
+    React.createElement(comp || (comp = mapComp()), props);
+  return Object.assign(Refluent, {
+    do: (...selectors) => chain(doMap(...selectors)),
+    label: displayName =>
+      chain((C = Root) =>
+        Object.assign(props => React.createElement(C, props), { displayName }),
+      ),
+    transform: hoc => chain((C = Root) => (hoc ? hoc(C) : C)),
+    yield: YieldComp => chain(yieldMap(YieldComp)),
+  });
 };
-export const Comp = wrap((C = Root) => C) as Comp<any>;
+export const Comp = wrap((C = Root) => C).yield(({ next }) =>
+  next(props => props, true),
+) as Comp<any>;
 
 export type Falsy = false | null | undefined | void;
 
@@ -733,6 +738,7 @@ export interface Comp<TOuter = Obj, TInner = TOuter>
       commit?: true,
     ) => Partial<T> | (() => void) | Falsy,
   ): Comp<TOuter, TInner & T>;
+  label(label: string): Comp<TOuter, TInner>;
   transform<T extends Obj = any>(
     map:
       | ((

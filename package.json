@@ -1,6 +1,6 @@
 {
   "name": "refluent",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A powerful and expressive fluent API for building React components",
   "keywords": [
     "react"
@@ -10,8 +10,12 @@
   "author": "Jon Whitehead",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
+  "prettier": {
+    "singleQuote": true,
+    "trailingComma": "all"
+  },
   "scripts": {
-    "prettier": "prettier --single-quote --trailing-comma all --write \"src/**/*.ts\"",
+    "prettier": "prettier --write \"src/**/*.ts\"",
     "clean": "rimraf lib/*",
     "build": "yarn run clean && tsc",
     "prepare": "yarn run build"
