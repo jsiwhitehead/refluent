@@ -1,7 +1,7 @@
 {
   "name": "refluent",
   "version": "0.2.0",
-  "description": "A powerful and expressive fluent API for building React components",
+  "description": "An alternative chainable React component API",
   "keywords": [
     "react"
   ],
@@ -21,11 +21,14 @@
     "prepare": "yarn run build"
   },
   "devDependencies": {
-    "@types/react": "^16.4.6",
-    "prettier": "^1.13.7",
-    "react": "^16.4.1",
+    "@types/react": "^16.4.7",
+    "prettier": "^1.14.0",
+    "react": "^16.4.2",
     "rimraf": "^2.6.2",
-    "typescript": "^2.9.2"
+    "typescript": "^3.0.1"
+  },
+  "peerDependencies": {
+    "react": ">=16"
   },
   "dependencies": {
     "keys-to-object": "^0.2.0",

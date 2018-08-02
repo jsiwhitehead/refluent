@@ -1,86 +1,70 @@
 # Refluent
 
-Refluent is a powerful and expressive fluent API for building React components, without the need for classes, state, lifecycle methods, shouldComponentUpdate, or higher order components.
+Refluent is an alternative chainable ([fluent](https://en.wikipedia.org/wiki/Fluent_interface)) API for React components, which lets you express a component as a flow of transformed props (`do`), gradually outputting dom (`yield`).
 
-## Installation
+Chained together, these methods allow for creating complex, efficient components without the need for classes, state, lifecycle methods, or shouldComponentUpdate.
+
+In addition, components built with Refluent are inherently composable, removing the need for the further abstraction of higher-order components.
 
 ```
 yarn add refluent
 ```
 
-## Table of contents
-
-- [Overview](#overview)
-  - [Example](#example)
-  - [Motivation: beyond higher-order components](#motivation-beyond-higher-order-components)
-- [Method 1: `do: (props => props)`](#method-1-do-props--props)
-  - [Basic form](#basic-form)
-  - [Advanced form](#advanced-form)
-  - Further details
-    - [Caching](#caching)
-    - [Memoization](#memoization)
-    - [Re-selecting pushed props](#re-selecting-pushed-props)
-    - [Side effects](#side-effects)
-- [Method 2: `yield (props => dom)`](#method-2-yield-props--dom)
-  - Further details
-    - [Default yield](#default-yield)
-    - [Refactoring and composition](#refactoring-and-composition)
-- [Method 3: `transform (component => component)`](#method-3-transform-component--component)
-- [Utility: `branch`](#utility-branch)
-- [Full example](#full-example)
-
-## Overview
-
-Refluent lets you build up React components from multiple smaller steps, working with the flow of props (starting with those provided to your component) and either:
-
-1.  Selecting props and using them to generate additional ones to pass forward (`props => props`) or
-2.  Using the incoming props to output dom (`props => dom`)
-
-The result at every step is a functional React component, extended with three methods `do`, `yield` (corresponding to 1 and 2 above) and `transform`, which themselves return new functional components extended in the same way.
-
-This changes the conceptual model of a component from a single object which accepts props, manages some state (optionally), and renders a single piece of dom, to a 'mini-program' which accepts initial props, applies transformations to them, and outputs dom at various points along the way.
-
 ### Example
 
-To demonstrate, here we create a simple `ShortInput` component of a text field, with optional label and initial value, that changes color from black to red if the value goes above 100 characters. Note how props are selected and used to create new ones in steps 2 and 3, and how dom is 'yielded' in steps 1 and 4.
+To demonstrate, here we create a component which renders a text field, with optional label and initial value, that changes color from black to red if the value goes above 100 characters:
 
 ```javascript
 import * as React from 'react';
 import r from 'refluent';
 
+const InputBase = r
+
+  // Create a value prop (with optional initial value) and onChange handler
+  .do('initial', (initial = null, push) => ({
+    value: initial,
+    onChange: value => push({ value }),
+  }));
+
 const ShortInput = r
 
-  // Step 1
+  // Step 1: Compose with InputBase to get the value and onChange props
+  .yield(InputBase)
+
+  // Step 2: Render the optional label and call next to continue the component
   .yield(({ label = '', next }) => (
     <div>
       {label} {next()}
     </div>
   ))
 
-  // Step 2
-  .do('initial', (initial = '', push) => ({
-    value: initial,
-    onChange: value => push({ value }),
-  }))
-
-  // Step 3
+  // Step 3: Set the input color depending on the current value length
   .do('value', value => ({
     color: value.length > 100 ? 'red' : 'black',
   }))
 
-  // Step 4
+  // Step 4: Render the input element
   .yield(({ value, onChange, color }) => (
     <input type="text" value={value} onChange={onChange} style={{ color }} />
   ));
 ```
 
-### Motivation: beyond higher-order components
+## Table of contents
 
-After using React for a number of years I found myself regularly using [Recompose](https://github.com/acdlite/recompose) to write long components in the form `compose(hoc1, hoc2, ...)`. Additionally, although HOCs are formally of the shape `(props => dom) => (props => dom)`, I noticed most of the HOCs I was using were more like `props => props (=> dom)`. Together with discovering the `mapPropsStream` HOC (also from Recompose), this helped me to see components as transformations of a flow of props, along with dom output (i.e. `props1 => props2 => props3 => ... => dom`).
-
-From there, I felt the wide variety of HOCs in Recompose weren't helping express this clearly, and worked to combine `withProps`, `withHandlers`, `mapPropsStream` and `pure` into a single 'prop transformation' HOC, `do`. At the same time, `renderComponent`, `nest`, and the emergence of [render props](https://reactjs.org/docs/render-props.html) together led to the idea of a 'partial dom output' HOC, `yield`.
-
-Finally, after successfully rewriting the majority of my components using only these two HOCs (and `compose`), I realised I could attach them directly onto a functional component and create the fluent API system of Refluent, and hence remove the need for HOCs altogether, fully capturing the sense of components as a single flow of props and dom output.
+- [Method 1: `do: (props => props)`](#method-1-do-props--props)
+  - [Basic form](#basic-form)
+  - [Advanced form](#advanced-form)
+  - [Caching](#caching)
+  - [Memoization](#memoization)
+  - [Re-selecting pushed props](#re-selecting-pushed-props)
+  - [Side effects](#side-effects)
+- [Method 2: `yield (props => dom)`](#method-2-yield-props--dom)
+  - [Default yield](#default-yield)
+  - [Refactoring and composition](#refactoring-and-composition)
+- [Method 3: `transform (component => component)`](#method-3-transform-component--component)
+- [Utility: `branch`](#utility-branch)
+- [Full example](#full-example)
+- [Motivation: Beyond higher-order components](#motivation-beyond-higher-order-components)
 
 ## Method 1: `do: (props => props)`
 
@@ -169,9 +153,7 @@ The second overload allows direct access to both the incoming and pushed props (
 
 **Note:** For optimization purposes, the second overload is only available if `func` is also called with `push`. If you need it, but don't need `push`, just write `.do((props$, _) => ...)`.
 
-### Further details
-
-#### Caching
+### Caching
 
 Every `do` maintains a cache of all previously pushed props, which newly pushed ones are compared against and replaced with if they are equivalent by value (for dates, JSON etc). In addition, all pushed props which are functions are wrapped in a static 'caller' function. The initial props of any Refluent component are also cached in the same way.
 
@@ -179,7 +161,7 @@ This means props change as little as possible, and can be compared for equality 
 
 **Note:** If a function prop is going to be called immediately during a `do` or `yield` call (e.g. a render prop), then give it a key of `noCache: true` to avoid being wrapped, otherwise your component wont re-render when it changes.
 
-#### Memoization
+### Memoization
 
 The reason `do` uses selectors and only allows for merging new props, rather than just accepting an arbitrary map `props => props`, is so that `map` can be memoized.
 
@@ -187,23 +169,23 @@ Due to caching (see above), the selected values can be compared to their previou
 
 This means you never have to worry about pure components or `shouldComponentUpdate`, as updates only happen when they need to.
 
-#### Re-selecting pushed props
+### Re-selecting pushed props
 
-As you may have spotted, selectors have access to the pushed props from the `do` call they are in. This is useful in various circumstances, but naturally creates a potential circular reference - pushed values can be selected and then used to update the same pushed values.
+Selectors have access to the pushed props from the `do` call they are in. This is useful in various circumstances, but naturally creates a potential circular reference - pushed values can be selected and then used to update the same pushed values.
 
 Fortunately, due to memoization and caching this will generally be fine as long as the intent of your `map` makes sense, i.e. if any circular references quickly converge to a static value.
 
-#### Side effects
+### Side effects
 
 To allow effective memoization, and to work with React async rendering, Refluent needs to carefully control side effects. Specifically, if a `map` is called from `do`, it either needs to be side effect free, or it needs to return a function which cleans up any active side effects.
 
-**Note:** Don't make any assumptions of when `map` will be called, it will likely be very different to what you expect, due to both memoization and async rendering.
+**Note:** Don't make any assumptions of when `map` will be called, it will likely be different to what you expect, due to both memoization and async rendering.
 
 ## Method 2: `yield (props => dom)`
 
 Conceptually, the `yield` method uses the incoming props to output dom, just like a functional React component.
 
-In reality, `yield` accepts any React component (i.e. also standard React class components), which it calls with the incoming props, combined with a special render prop called `next` (as long as one of `do` or `yield` is called again after this `yield`), which is used to continue the component.
+In reality, `yield` accepts any React component (i.e. also standard React class components), which it calls with the incoming props, combined with a special render prop called `next` (as long as another method is chained after this `yield`), which is used to continue the component.
 
 ```typescript
 yield(
@@ -218,13 +200,11 @@ yield(
 
 #### `next`
 
-Calling `next` renders the continuation of the component (i.e. further `do` and `yield` calls) at that location within the rendered dom.
+Calling `next` renders the continuation of the component (i.e. further `do`, `yield` and `transform` calls) at that location within the rendered dom.
 
 The arguments for `next` control which props are sent forward, and whether they are cached first. If no props are provided the previous ones are used, otherwise new ones are provided (directly or as a map of the previous props), and are optionally cached (set `doCache = true`).
 
-### Further details
-
-#### Default yield
+### Default yield
 
 Intuitively, every component must end with a `yield`, otherwise you have transformed props with a `do` but aren't doing anything with them.
 
@@ -240,11 +220,11 @@ r
   })
 ```
 
-I.e. `next` is used if present (important for composition, see below), then `children` (called if a function), or finally just `null`.
+I.e. `next` is used if present (important for composition, see below), then `children` (called if a render prop), or finally just `null`.
 
-#### Refactoring and composition
+### Refactoring and composition
 
-As `yield` accepts any component, this can be used for composition. In particular, with the help of the default `yield`, the following are equivalent:
+As `yield` accepts any component, this can be used for composition. Specifically, with the help of the default `yield`, the following are equivalent:
 
 ```typescript
 r
@@ -263,7 +243,7 @@ r
   )
 ```
 
-I.e. **any chain of steps in a Refluent component can be refactored out into a new component**, and called with yield, with the exact same effect.
+I.e. any chain of steps in a Refluent component can be refactored out into a new component, and called with yield, with the exact same effect.
 
 ## Method 3: `transform (component => component)`
 
@@ -287,18 +267,18 @@ branch(
 ) => Component
 ```
 
-This creates a component which applies the `test` selector (equivalent to selectors in `do`) to the incoming props to choose which of `truthy` or `falsy` to render. If the value is falsy and `falsy` isn't provided, the default `yield` component is used.
+This creates a component which applies the `test` selector (equivalent to selectors in `do`) to the incoming props to choose which of `truthy` or `falsy` to render. If the selected value is falsy and `falsy` isn't provided, the default `yield` component is used.
 
 Together with `yield`, this allows Refluent components to express (potentially nested) branching if/else logic.
 
 ## Full example
 
-Here we create a more complex `Input` component of a text field, with optional initial label and hoverable submit button, which will only call submit (on clicking the button or hitting enter) if the value is below 100 characters.
+Here we create a component which renders a text field, with optional initial label and hoverable submit button, which will only call submit (on clicking the button or hitting enter) if the value is below 100 characters.
 
 ```typescript
 import r, { branch } from 'refluent';
 
-const watchHover = r.do(
+const WatchHover = r.do(
   'onMouseMove',
   'onMouseLeave',
   (onMouseMove, onMouseLeave, push) => ({
@@ -310,12 +290,18 @@ const watchHover = r.do(
   }),
 );
 
-const Input = r
-  .do('initial', (initial = '', push) => ({
-    value: initial,
-    onChange: value => push({ value }),
-  }))
+const ShortInput = r
+  .do(props$ => {
+    let initialized = false;
+    props$('initial', (initial = '') => {
+      if (!initialized) {
+        initialized = true;
+        return { value: initial };
+      }
+    });
+  })
   .do((props$, push) => ({
+    onChange: value => push({ value }),
     submit: () => {
       if (props$().value.length < 100) props$().submit();
     },
@@ -324,7 +310,7 @@ const Input = r
     branch(
       ({ withButton }) => withButton,
       r
-        .yield(watchHover)
+        .yield(WatchHover)
         .do('isHovered', isHovered => ({
           background: isHovered ? 'red' : 'orange',
         }))
@@ -352,3 +338,17 @@ const Input = r
     />
   ));
 ```
+
+## Motivation: Beyond higher-order components
+
+All the core ideas of Refluent are inspired by various parts of [Recompose](https://github.com/acdlite/recompose):
+
+| Recompose                                                                                                                                                                      | Refluent                                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| Composing together multiple 'prop transformation' HOCs, e.g. `compose(withProps, mapProps, withState, etc...)`, and using `mapPropsStream`                                     | Seeing components as a flow of transformed props           |
+| Using `mapPropsStream` instead of class components, with the function closure for the class body, stream observation for lifecycle events, and stream combination for setState | Class components not required, even for advanced behaviour |
+| Creating function props with `withHandlers` instead of `withProps` to maintain referential equality                                                                            | Automatic referential equality for function props          |
+| Outputting dom with the `renderComponent` HOC and using `nest` to combine components (as well as the emergence of [render props](https://reactjs.org/docs/render-props.html))  | Partial / nested dom output                                |
+| The HOC `mapProps` is a map `(propsA => dom) => (propsB => dom)`, but actually acts like `propsA => propsB (=> dom)`                                                           | Some HOCs don't conceptually map one component to another  |
+
+After many experiments and iterations, the first four ideas led to a single pair of HOCs (`do` and `yield`) which could `compose` together to create almost any React component. This very small 'API', along with the last idea above, then inspired the trick of directly attaching the HOCs onto a functional component, creating the chainable API of Refluent and removing the need for explicit HOCs altogether.
