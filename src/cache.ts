@@ -1,6 +1,8 @@
 import keysToObject from 'keys-to-object';
 
 const dateCache = {};
+const objCache = new WeakMap();
+const strCache = new Map();
 
 const stringify = v => {
   const type = Object.prototype.toString.call(v);
@@ -19,8 +21,6 @@ const stringify = v => {
   }
   throw new Error();
 };
-const objCache = new WeakMap();
-const strCache = new Map();
 
 export default () => {
   const baseMethods = {};
