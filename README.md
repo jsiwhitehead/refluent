@@ -361,3 +361,11 @@ All the core ideas of Refluent are inspired by parts of [Recompose](https://gith
 | The HOC `mapProps` is a map `(propsA => dom) => (propsB => dom)`, but actually acts like `propsA => propsB (=> dom)`                                                           | Some HOCs don't conceptually map one component to another  |
 
 After many experiments and iterations, the first four ideas led to a single pair of HOCs (`do` and `yield`) which could `compose` together to create almost any React component. This very small 'API', along with the last idea above, then inspired the trick of directly attaching the HOCs onto a functional component, creating the fluent API and removing the need for (explicit) HOCs altogether.
+
+## Contribute
+
+All ideas, issues and contributions are very welcome!
+
+## License
+
+[MIT](https://tldrlegal.com/license/mit-license)
