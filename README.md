@@ -66,6 +66,29 @@ const HoverButton = refluent
   ));
 ```
 
+## How is this better than standard React components?
+
+### Everything is composable
+
+As demonstrated in the last example above, all Refluent components are automatically composable. Simply calling `yield` on an existing component is exactly the same as applying its chain of methods directly ([see the docs below](#refactoring-and-composition)). This makes refactoring trivial, and removes the need for the further abstraction of higher-order components.
+
+### Prop lifecycles
+
+Another thing Refluent makes trivial is working with the lifecycle of specific props while ignoring the rest (i.e. rather than working with the component lifecycle, and hence all the props together). This is especially useful when you want to do something complicated based on a specific prop, such as fetch data or subscribe to a stream of some sort:
+
+```typescript
+refluent
+  .do('chatId', (chatId, push) => {
+    const unwatch = watchChat(chatId, messages => push({ messages }));
+    return () => unwatch();
+  })
+  .yield(({ messages, ...otherProps }) => ...);
+```
+
+### Components as 'prop-programs'
+
+Finally, Refluent lets you conceptualize and build components in a completely different (potentially more intuitive) way compared to standard React. Rather than working with components as stateful objects which are pieced together like building blocks, you instead write components as 'prop-programs' - series of steps which incrementally build up the logic of your component (including conditional logic!). Read through the [full example below](#full-example) to see this in action.
+
 ## Table of contents
 
 - [Component API](#component-api)
@@ -290,8 +313,6 @@ Together with `yield`, this allows Refluent components to express (potentially n
 ## Full example
 
 Here we create a component which renders a text field, with optional initial label and hoverable submit button, which will only call submit (on clicking the button or hitting enter) if the value is below 100 characters.
-
-The comments show how Refluent lets us intuitively express the logic of the component (including conditional logic), as a sort of domain specific 'micro-program'.
 
 ```typescript
 import * as React from 'react';
