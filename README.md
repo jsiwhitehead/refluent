@@ -8,7 +8,27 @@ Refluent is an alternative [fluent](https://en.wikipedia.org/wiki/Fluent_interfa
 yarn add refluent
 ```
 
-## Examples
+## Table of contents
+
+- [Basic examples](#basic-examples)
+- [Advantages over standard React components](#advantages-over-standard-react-components)
+- [Component API](#component-api)
+  - [`do: (props => props)`](#do-props--props)
+    - [Basic form](#basic-form)
+    - [Advanced form](#advanced-form)
+    - [Caching](#caching)
+    - [Memoization](#memoization)
+    - [Re-selecting pushed props](#re-selecting-pushed-props)
+    - [Side effects](#side-effects)
+  - [`yield (props => dom)`](#yield-props--dom)
+    - [Default yield](#default-yield)
+    - [Refactoring and composition](#refactoring-and-composition)
+  - [`transform (component => component)`](#transform-component--component)
+- [Utility: `branch`](#utility-branch)
+- [Full example](#full-example)
+- [Motivation: Beyond higher-order components](#motivation-beyond-higher-order-components)
+
+## Basic examples
 
 **Simple:** use `do` to generate props, and `yield` to output dom
 
@@ -66,7 +86,7 @@ const HoverButton = refluent
   ));
 ```
 
-## How is this better than standard React components?
+## Advantages over standard React components
 
 ### Everything is composable
 
@@ -88,24 +108,6 @@ refluent
 ### Components as 'prop-programs'
 
 Finally, Refluent lets you conceptualize and build components in a completely different (potentially more intuitive) way compared to standard React. Rather than working with components as stateful objects which are pieced together like building blocks, you instead write components as 'prop-programs' - series of steps which incrementally build up the logic of your component (including conditional logic!). Read through the [full example below](#full-example) to see this in action.
-
-## Table of contents
-
-- [Component API](#component-api)
-  - [`do: (props => props)`](#do-props--props)
-    - [Basic form](#basic-form)
-    - [Advanced form](#advanced-form)
-    - [Caching](#caching)
-    - [Memoization](#memoization)
-    - [Re-selecting pushed props](#re-selecting-pushed-props)
-    - [Side effects](#side-effects)
-  - [`yield (props => dom)`](#yield-props--dom)
-    - [Default yield](#default-yield)
-    - [Refactoring and composition](#refactoring-and-composition)
-  - [`transform (component => component)`](#transform-component--component)
-- [Utility: `branch`](#utility-branch)
-- [Full example](#full-example)
-- [Motivation: Beyond higher-order components](#motivation-beyond-higher-order-components)
 
 ## Component API
 
