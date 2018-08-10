@@ -2,7 +2,7 @@
 
 #### Built complex, efficient, composable React components without the need for classes, state, lifecycle methods, or higher-order components!
 
-Refluent is an alternative [fluent](https://en.wikipedia.org/wiki/Fluent_interface) (chainable) API for React components, which lets you express a component as a flow of transformed props (`do`), gradually outputting dom (`yield`).
+Refluent is an alternative [fluent](https://en.wikipedia.org/wiki/Fluent_interface) (chainable) API for React components, which lets you express a component as a flow of transformed props, gradually outputting dom.
 
 ```
 yarn add refluent
@@ -291,10 +291,13 @@ Together with `yield`, this allows Refluent components to express (potentially n
 
 Here we create a component which renders a text field, with optional initial label and hoverable submit button, which will only call submit (on clicking the button or hitting enter) if the value is below 100 characters.
 
+The comments show how Refluent lets us intuitively express the logic of the component (including conditional logic), as a sort of domain specific 'micro-program'.
+
 ```typescript
 import * as React from 'react';
 import refluent, { branch } from 'refluent';
 
+// Create Hover utility
 const Hover = refluent.do((_, push) => ({
   hoverProps: {
     onMouseMove: () => push({ isHovered: true }),
@@ -304,24 +307,30 @@ const Hover = refluent.do((_, push) => ({
 }));
 
 const ShortInput = refluent
+  // Create value prop and onChange handler to manage input state
   .do('initial', (initial = '', push) => ({
     value: initial,
     onChange: value => push({ value }),
   }))
+  // Wrap provided submit handler to enforce value length and return value
   .do((props$, _) => ({
     submit: () => {
       const { submit, value } = props$();
-      if (value.length < 100) submit();
+      if (value.length < 100) submit(value);
     },
   }))
   .yield(
+    // If withButton is truthy, branch and...
     branch(
       ({ withButton }) => withButton,
       refluent
+        // Call Hover utility
         .yield(Hover)
+        // Change button background color if hovered
         .do('isHovered', isHovered => ({
           background: isHovered ? 'red' : 'orange',
         }))
+        // Render button, and call next to continue (and hence render input)
         .yield(({ submit, hoverProps, background, next }) => (
           <div>
             {next()}
@@ -332,12 +341,14 @@ const ShortInput = refluent
         )),
     ),
   )
+  // Create onKeyDown handler to submit on enter
   .do((props$, _) => ({
     onKeyDown: e => {
       const { submit } = props$();
       if (e.keyCode === 13) submit();
     },
   }))
+  // Render input
   .yield(({ value, onChange, onKeyDown }) => (
     <input
       type="text"
