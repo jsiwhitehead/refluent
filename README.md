@@ -2,7 +2,21 @@
 
 #### Built complex, efficient, composable React components without the need for classes, state, lifecycle methods, or higher-order components!
 
-Refluent is an alternative [fluent](https://en.wikipedia.org/wiki/Fluent_interface) (chainable) API for React components, which lets you express a component as a flow of transformed props, gradually outputting dom.
+Refluent is an alternative [fluent](https://en.wikipedia.org/wiki/Fluent_interface) (chainable) API for React components, which lets you express any component as a series of steps which transform the flow of props (starting with those provided to the component), and gradually output dom.
+
+```typescript
+const Link = refluent
+  .do('active', active => ({
+    background: active ? 'grey' : 'white',
+  }))
+  .yield(({ text, href, background }) => (
+    <a href={href} style={{ background }}>
+      {text}
+    </a>
+  ));
+```
+
+## Installation
 
 ```
 yarn add refluent
@@ -10,8 +24,11 @@ yarn add refluent
 
 ## Table of contents
 
-- [Basic examples](#basic-examples)
+- [Features](#features)
 - [Advantages over standard React components](#advantages-over-standard-react-components)
+  - [Everything is composable](#everything-is-composable)
+  - [Prop lifecycles](#prop-lifecycles)
+  - [Components as dom-generators](#components-as-dom-generators)
 - [Component API](#component-api)
   - [`do: (props => props)`](#do-props--props)
     - [Basic form](#basic-form)
@@ -28,23 +45,9 @@ yarn add refluent
 - [Full example](#full-example)
 - [Motivation: Beyond higher-order components](#motivation-beyond-higher-order-components)
 
-## Basic examples
+## Features
 
-**Simple:** use `do` to generate props, and `yield` to output dom
-
-```typescript
-const Link = refluent
-  .do('active', active => ({
-    background: active ? 'grey' : 'white',
-  }))
-  .yield(({ text, href, background }) => (
-    <a href={href} style={{ background }}>
-      {text}
-    </a>
-  ));
-```
-
-**Stateful:** use `push` to update props in response to events
+**Stateful:** use `push` within `do` to update props asynchronously
 
 ```typescript
 const Input = refluent
@@ -62,7 +65,7 @@ const Input = refluent
   ));
 ```
 
-**Composable:** make helper components and 'call' them with `yield`
+**Composable:** call a component with `yield` to use its steps
 
 ```typescript
 const Hover = refluent.do((_, push) => ({
@@ -94,7 +97,7 @@ As demonstrated in the last example above, all Refluent components are automatic
 
 ### Prop lifecycles
 
-Another thing Refluent makes trivial is working with the lifecycle of specific props while ignoring the rest (i.e. rather than working with the component lifecycle, and hence all the props together). This is especially useful when you want to do something complicated based on a specific prop, such as fetch data or subscribe to a stream of some sort:
+Another thing Refluent makes trivial is working with the lifecycle of specific props while ignoring the others (i.e. rather than working with the component lifecycle, and hence all the props together). This is especially useful when you want to do something complicated based on a specific prop, such as fetch data or subscribe to a stream of some sort:
 
 ```typescript
 refluent
@@ -105,9 +108,9 @@ refluent
   .yield(({ messages, ...otherProps }) => ...);
 ```
 
-### Components as 'prop-programs'
+### Components as dom-generators
 
-Finally, Refluent lets you conceptualize and build components in a completely different (potentially more intuitive) way compared to standard React. Rather than working with components as stateful objects which are pieced together like building blocks, you instead write components as 'prop-programs' - series of steps which incrementally build up the logic of your component (including conditional logic!). Read through the [full example below](#full-example) to see this in action.
+Beyond specific uses however, Refluent ultimately lets you conceptualize and build components in a completely different (potentially more intuitive) way compared to standard React. Rather than working with components as stateful objects which are pieced together like building blocks, you instead write components as dom-generators - mini imperative programs consisting of calls to `do` which build up the logic of your component and calls to `yield` which output dom. Read through the [full example](#full-example) to see this in action.
 
 ## Component API
 
@@ -330,12 +333,12 @@ const Hover = refluent.do((_, push) => ({
 }));
 
 const ShortInput = refluent
-  // Create value prop and onChange handler to manage input state
+  // 1: Create value prop and onChange handler to manage input state
   .do('initial', (initial = '', push) => ({
     value: initial,
     onChange: value => push({ value }),
   }))
-  // Wrap provided submit handler to enforce value length and return value
+  // 2: Wrap provided submit handler to enforce value length and return value
   .do((props$, _) => ({
     submit: () => {
       const { submit, value } = props$();
@@ -343,17 +346,17 @@ const ShortInput = refluent
     },
   }))
   .yield(
-    // If withButton is truthy, branch and...
+    // 3: If withButton is truthy, branch and...
     branch(
       ({ withButton }) => withButton,
       refluent
-        // Call Hover utility
+        // 3a: Call Hover utility
         .yield(Hover)
-        // Change button background color if hovered
+        // 3b: Change button background color if hovered
         .do('isHovered', isHovered => ({
           background: isHovered ? 'red' : 'orange',
         }))
-        // Render button, and call next to continue (and hence render input)
+        // 3c: Render button, and call next to continue (and hence render input)
         .yield(({ submit, hoverProps, background, next }) => (
           <div>
             {next()}
@@ -364,14 +367,14 @@ const ShortInput = refluent
         )),
     ),
   )
-  // Create onKeyDown handler to submit on enter
+  // 4: Create onKeyDown handler to submit on enter
   .do((props$, _) => ({
     onKeyDown: e => {
       const { submit } = props$();
       if (e.keyCode === 13) submit();
     },
   }))
-  // Render input
+  // 5: Render input
   .yield(({ value, onChange, onKeyDown }) => (
     <input
       type="text"
